@@ -11,6 +11,8 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI gameOverText;
     public Button restartButton;
+    public TextMeshProUGUI highScoreText;
+    private int highScore;
     public bool isGameActive;
     private float spawnRate = 1.0f;
     private int score;
@@ -22,6 +24,8 @@ public class GameManager : MonoBehaviour
         StartCoroutine(SpawnTarget());
         score = 0;
         UpdateScore(0);
+        highScore = PlayerPrefs.GetInt("HighScore", 0);
+        highScoreText.text = "High Score: " + highScore;
         
     }
 
@@ -52,6 +56,14 @@ public class GameManager : MonoBehaviour
         isGameActive = false;
         Debug.Log("Game Over!");
         restartButton.gameObject.SetActive(true);
+
+        if (score > highScore)
+        {
+            highScore = score;
+            PlayerPrefs.SetInt("HighScore", highScore); // save persistently
+            PlayerPrefs.Save();
+            highScoreText.text = "High Score: " + highScore;
+        }
     }
     public void RestartGame()
     {
