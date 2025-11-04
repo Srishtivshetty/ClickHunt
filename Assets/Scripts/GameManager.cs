@@ -13,15 +13,30 @@ public class GameManager : MonoBehaviour
     public Button restartButton;
     public GameObject titleScreen;
     public TextMeshProUGUI highScoreText;
+    public Button pauseButton;
+    public Button resumeButton;
+    public TextMeshProUGUI countdownText;
+
     private int highScore;
     public bool isGameActive;
-    private float spawnRate = 1.0f;
+    private float spawnRate = 2.0f;
     private int score;
+    private bool isPaused = false;
+
 
     // Start is called before the first frame update
     void Start()
     { 
         
+        if (resumeButton != null)
+            resumeButton.gameObject.SetActive(false);
+        if (pauseButton != null)
+            pauseButton.onClick.AddListener(TogglePause);
+        if (resumeButton != null)
+            resumeButton.onClick.AddListener(TogglePause);
+        
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(false);
     }
 
     // Update is called once per frame
@@ -51,29 +66,96 @@ public class GameManager : MonoBehaviour
         isGameActive = false;
         Debug.Log("Game Over!");
         restartButton.gameObject.SetActive(true);
+        pauseButton.gameObject.SetActive(false);
+        resumeButton.gameObject.SetActive(false);
 
         if (score > highScore)
         {
             highScore = score;
-            PlayerPrefs.SetInt("HighScore", highScore); // save persistently
+            PlayerPrefs.SetInt("HighScore", highScore); 
             PlayerPrefs.Save();
             highScoreText.text = "High Score: " + highScore;
         }
     }
     public void RestartGame()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
     public void StartGame(int difficulty)
     {
-
-        isGameActive = true;
+        titleScreen.SetActive(false);
         score = 0;
-        StartCoroutine(SpawnTarget());
         UpdateScore(0);
-        spawnRate /= difficulty;
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         highScoreText.text = "High Score: " + highScore;
-        titleScreen.gameObject.SetActive(false);
+
+        if (pauseButton != null) pauseButton.gameObject.SetActive(true);
+        if (resumeButton != null) resumeButton.gameObject.SetActive(false);
+
+        StartCoroutine(GameStartCountdown(difficulty));
+    }
+
+    private IEnumerator GameStartCountdown(int difficulty)
+    {
+        int countdown = 3;
+
+        if (countdownText != null)
+            countdownText.gameObject.SetActive(true);
+
+        while (countdown > 0)
+        {
+            if (countdownText != null)
+                countdownText.text = countdown.ToString();
+
+            yield return new WaitForSeconds(1f);
+            countdown--;
+        }
+
+        if (countdownText != null)
+        {
+            countdownText.text = "GO!";
+            yield return new WaitForSeconds(1f);
+            countdownText.gameObject.SetActive(false);
+        }
+
+        isGameActive = true;
+        spawnRate /= difficulty;
+        StartCoroutine(SpawnTarget());
+    }
+    // Pause/Resume functions
+    public void TogglePause()
+    {
+        if (isPaused)
+        {
+            ResumeGame();
+        }
+        else
+        {
+            PauseGame();
+        }
+    }
+
+    public void PauseGame()
+    {
+        Time.timeScale = 0f;
+        isPaused = true;
+
+        if (pauseButton != null)
+            pauseButton.gameObject.SetActive(false);
+        if (resumeButton != null)
+            resumeButton.gameObject.SetActive(true);
+    }
+
+    public void ResumeGame()
+    {
+        Time.timeScale = 1f;
+        isPaused = false;
+
+        if (pauseButton != null)
+            pauseButton.gameObject.SetActive(true);
+        if (resumeButton != null)
+            resumeButton.gameObject.SetActive(false);
     }
 }
+    
