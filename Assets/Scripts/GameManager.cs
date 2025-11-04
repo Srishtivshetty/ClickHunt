@@ -64,13 +64,14 @@ public class GameManager : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
-    public void StartGame()
+    public void StartGame(int difficulty)
     {
 
         isGameActive = true;
         score = 0;
-        StartCoroutine(SpawnTarget());  
+        StartCoroutine(SpawnTarget());
         UpdateScore(0);
+        spawnRate /= difficulty;
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         highScoreText.text = "High Score: " + highScore;
         titleScreen.gameObject.SetActive(false);
