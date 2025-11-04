@@ -11,6 +11,7 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI gameOverText;
     public Button restartButton;
+    public GameObject titleScreen;
     public TextMeshProUGUI highScoreText;
     private int highScore;
     public bool isGameActive;
@@ -72,5 +73,6 @@ public class GameManager : MonoBehaviour
         UpdateScore(0);
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         highScoreText.text = "High Score: " + highScore;
+        titleScreen.gameObject.SetActive(false);
     }
 }
