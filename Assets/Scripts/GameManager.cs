@@ -16,29 +16,32 @@ public class GameManager : MonoBehaviour
     public Button pauseButton;
     public Button resumeButton;
     public TextMeshProUGUI countdownText;
+    public TextMeshProUGUI levelText;
 
     private int highScore;
     public bool isGameActive;
     private float spawnRate = 3.0f;
     private int score;
     private bool isPaused = false;
-
-
+    
+    //  Level system variables
+    private int level = 1;
+    private int scoreToNextLevel = 100;
+    
     // Start is called before the first frame update
     void Start()
-    { 
-        
+    {
+
         if (resumeButton != null)
             resumeButton.gameObject.SetActive(false);
         if (pauseButton != null)
             pauseButton.onClick.AddListener(TogglePause);
         if (resumeButton != null)
             resumeButton.onClick.AddListener(TogglePause);
-        
+
         if (countdownText != null)
             countdownText.gameObject.SetActive(false);
     }
-
     // Update is called once per frame
     void Update()
     {
@@ -53,12 +56,40 @@ public class GameManager : MonoBehaviour
             Instantiate(targets[index]);
         }
     }
-   // Update the score
+    // Update the score
     public void UpdateScore(int scoreToAdd)
     {
         score += scoreToAdd;
         scoreText.text = "Score:" + score;
+        if (score >= level * scoreToNextLevel)
+        {
+            LevelUp();
+        }
+    }
 
+    private void LevelUp()
+    {
+        level++;
+        levelText.text = "Level: " + level;
+
+        // Increase difficulty (spawn faster)
+        if (spawnRate > 0.5f)
+        {
+            spawnRate -= 0.2f;
+        }
+
+        // Optional: show message
+        StartCoroutine(ShowLevelUpMessage());
+    }
+    private IEnumerator ShowLevelUpMessage()
+    {
+        if (countdownText != null)
+        {
+            countdownText.text = "LEVEL " + level;
+            countdownText.gameObject.SetActive(true);
+            yield return new WaitForSeconds(1.5f);
+            countdownText.gameObject.SetActive(false);
+        }
     }
     public void GameOver()
     {
@@ -89,6 +120,11 @@ public class GameManager : MonoBehaviour
         UpdateScore(0);
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         highScoreText.text = "High Score: " + highScore;
+        
+        // Initialize level
+        level = 1;
+        if (levelText != null)
+            levelText.text = "Level: " + level;
 
         if (pauseButton != null) pauseButton.gameObject.SetActive(true);
         if (resumeButton != null) resumeButton.gameObject.SetActive(false);
