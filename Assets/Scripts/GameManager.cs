@@ -19,7 +19,7 @@ public class GameManager : MonoBehaviour
 
     private int highScore;
     public bool isGameActive;
-    private float spawnRate = 2.0f;
+    private float spawnRate = 3.0f;
     private int score;
     private bool isPaused = false;
 

@@ -6,8 +6,8 @@ public class Target : MonoBehaviour
 {
     private Rigidbody targetRb;
     private GameManager gameManager;
-    private float minSpeed = 12;
-    private float maxSpeed = 16;
+    private float minSpeed = 14;
+    private float maxSpeed = 15;
     private float maxTorque = 10;
     private float xRange = 4;
     private float ySpawnPos = -6;
