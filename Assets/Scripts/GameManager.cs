@@ -10,6 +10,7 @@ public class GameManager : MonoBehaviour
     public List<GameObject> targets;
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI gameOverText;
+    public TextMeshProUGUI gameWinText;
     public Button restartButton;
     public GameObject titleScreen;
     public TextMeshProUGUI highScoreText;
@@ -20,13 +21,14 @@ public class GameManager : MonoBehaviour
 
     private int highScore;
     public bool isGameActive;
+    public bool isGameWon = false;
     private float spawnRate = 3.0f;
     private int score;
     private bool isPaused = false;
     
     //  Level system variables
     private int level = 1;
-    private int scoreToNextLevel = 100;
+    private int[] scoreToNextLevel = { 50, 150, 200 };
     
     // Start is called before the first frame update
     void Start()
@@ -41,11 +43,9 @@ public class GameManager : MonoBehaviour
 
         if (countdownText != null)
             countdownText.gameObject.SetActive(false);
-    }
-    // Update is called once per frame
-    void Update()
-    {
 
+        if (gameWinText != null)
+            gameWinText.gameObject.SetActive(false);    
     }
     IEnumerator SpawnTarget()
     {
@@ -60,26 +60,31 @@ public class GameManager : MonoBehaviour
     public void UpdateScore(int scoreToAdd)
     {
         score += scoreToAdd;
-        scoreText.text = "Score:" + score;
-        if (score >= level * scoreToNextLevel)
+        scoreText.text = "Score: " + score;
+
+        // Level up
+        if (level <= 3 && score >= scoreToNextLevel[level - 1])
         {
             LevelUp();
         }
+
+        // Check for game win
+        CheckGameWin();
     }
 
     private void LevelUp()
     {
-        level++;
-        levelText.text = "Level: " + level;
-
-        // Increase difficulty (spawn faster)
-        if (spawnRate > 0.5f)
+        if (level < 3)
         {
-            spawnRate -= 0.2f;
-        }
+            level++;
+            if (levelText != null) levelText.text = "Level: " + level;
 
-        // Optional: show message
-        StartCoroutine(ShowLevelUpMessage());
+            // Increase difficulty
+            if (spawnRate > 0.5f)
+                spawnRate -= 0.2f;
+
+            StartCoroutine(ShowLevelUpMessage());
+        }
     }
     private IEnumerator ShowLevelUpMessage()
     {
@@ -91,21 +96,47 @@ public class GameManager : MonoBehaviour
             countdownText.gameObject.SetActive(false);
         }
     }
+    private void CheckGameWin()
+    {
+        if (level == 3 && score >= scoreToNextLevel[2] && !isGameWon)
+        {
+            isGameWon = true;
+            isGameActive = false;
+
+            if (gameWinText != null) gameWinText.gameObject.SetActive(true);
+
+            // Update high score if needed
+            if (score > highScore)
+            {
+                highScore = score;
+                PlayerPrefs.SetInt("HighScore", highScore);
+                PlayerPrefs.Save();
+                highScoreText.text = "High Score: " + highScore;
+            }
+
+            if (pauseButton != null) pauseButton.gameObject.SetActive(false);
+            if (resumeButton != null) resumeButton.gameObject.SetActive(false);
+            restartButton.gameObject.SetActive(true);
+        }
+    }
+
     public void GameOver()
     {
-        gameOverText.gameObject.SetActive(true);
-        isGameActive = false;
-        Debug.Log("Game Over!");
-        restartButton.gameObject.SetActive(true);
-        pauseButton.gameObject.SetActive(false);
-        resumeButton.gameObject.SetActive(false);
-
-        if (score > highScore)
+        if (!isGameWon)
         {
-            highScore = score;
-            PlayerPrefs.SetInt("HighScore", highScore); 
-            PlayerPrefs.Save();
-            highScoreText.text = "High Score: " + highScore;
+            gameOverText.gameObject.SetActive(true);
+            isGameActive = false;
+            restartButton.gameObject.SetActive(true);
+            pauseButton.gameObject.SetActive(false);
+            resumeButton.gameObject.SetActive(false);
+
+            if (score > highScore)
+            {
+                highScore = score;
+                PlayerPrefs.SetInt("HighScore", highScore);
+                PlayerPrefs.Save();
+                highScoreText.text = "High Score: " + highScore;
+            }
         }
     }
     public void RestartGame()
@@ -135,7 +166,6 @@ public class GameManager : MonoBehaviour
     private IEnumerator GameStartCountdown(int difficulty)
     {
         int countdown = 3;
-
         if (countdownText != null)
             countdownText.gameObject.SetActive(true);
 
@@ -147,17 +177,15 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
             countdown--;
         }
-
         if (countdownText != null)
         {
             countdownText.text = "GO!";
             yield return new WaitForSeconds(1f);
             countdownText.gameObject.SetActive(false);
         }
-
-        isGameActive = true;
-        spawnRate /= difficulty;
-        StartCoroutine(SpawnTarget());
+            isGameActive = true;
+            spawnRate /= difficulty;
+            StartCoroutine(SpawnTarget());
     }
     // Pause/Resume functions
     public void TogglePause()
@@ -170,13 +198,13 @@ public class GameManager : MonoBehaviour
         {
             PauseGame();
         }
+            
     }
 
     public void PauseGame()
     {
         Time.timeScale = 0f;
         isPaused = true;
-
         if (pauseButton != null)
             pauseButton.gameObject.SetActive(false);
         if (resumeButton != null)
@@ -187,11 +215,10 @@ public class GameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         isPaused = false;
-
         if (pauseButton != null)
             pauseButton.gameObject.SetActive(true);
         if (resumeButton != null)
-            resumeButton.gameObject.SetActive(false);
+        resumeButton.gameObject.SetActive(false);
     }
 }
     

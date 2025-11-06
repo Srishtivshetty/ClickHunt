@@ -42,7 +42,7 @@ public class Target : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         Destroy(gameObject);  
-         if (!gameObject.CompareTag("Bomb"))  
+         if (!gameObject.CompareTag("Bomb") && gameManager.isGameActive && !gameManager.isGameWon)
          {
             gameManager.GameOver();
          } 
