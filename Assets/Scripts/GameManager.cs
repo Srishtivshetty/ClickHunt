@@ -19,32 +19,22 @@ public class GameManager : MonoBehaviour
     public Button resumeButton;
     public TextMeshProUGUI countdownText;
     public TextMeshProUGUI levelText;
-    [Header("Coin System")]
-    public LobbyCoins lobbyCoins;   // Reference to LobbyCoins for coin rewards
-    public int gameWinReward = 200; // Reward coins for winning
+    [Header("Game Settings")]
+    public int gameWinReward = 200; // coins for winning
     private int highScore;
     public bool isGameActive;
     public bool isGameWon = false;
     private float spawnRate = 3.0f;
     private int score;
     private bool isPaused = false;
-    
+
     //  Level system variables
     private int level = 1;
     private int[] scoreToNextLevel = { 50, 150, 200 };
-    
+
     // Start is called before the first frame update
     void Start()
     {
-    // Find LobbyCoins if not assigned
-    if (lobbyCoins == null)
-     {
-         lobbyCoins = FindObjectOfType<LobbyCoins>();
-         if (lobbyCoins == null)
-         {
-             Debug.LogWarning("LobbyCoins object not found in scene!");
-       }
-    }
         if (resumeButton != null)
             resumeButton.gameObject.SetActive(false);
         if (pauseButton != null)
@@ -56,7 +46,7 @@ public class GameManager : MonoBehaviour
             countdownText.gameObject.SetActive(false);
 
         if (gameWinText != null)
-            gameWinText.gameObject.SetActive(false);    
+            gameWinText.gameObject.SetActive(false);
     }
     IEnumerator SpawnTarget()
     {
@@ -75,9 +65,7 @@ public class GameManager : MonoBehaviour
 
         // Level up
         if (level <= 3 && score >= scoreToNextLevel[level - 1])
-        {
             LevelUp();
-        }
 
         // Check for game win
         CheckGameWin();
@@ -111,21 +99,12 @@ public class GameManager : MonoBehaviour
     {
         if (level == 3 && score >= scoreToNextLevel[2] && !isGameWon)
         {
-            isGameWon = true;
             isGameActive = false;
-            // Give reward coins
-            if (lobbyCoins != null)
-        {
-            lobbyCoins.AddCoins(gameWinReward);
-            Debug.Log("Game Won! Rewarded " + gameWinReward + " coins.");
-        }
+            Win(); // Call the unified Win function
 
-            if (gameWinText != null) gameWinText.gameObject.SetActive(true);
-           // Reward coins for winning
-            if (lobbyCoins != null)
-        {
-            lobbyCoins.AddCoins(gameWinReward);   // new function in LobbyCoins
-        }
+            if (gameWinText != null)
+                gameWinText.gameObject.SetActive(true);
+
             // Update high score if needed
             if (score > highScore)
             {
@@ -140,16 +119,32 @@ public class GameManager : MonoBehaviour
             restartButton.gameObject.SetActive(true);
         }
     }
+    void Win()
+    {
+        if (isGameWon) return;
+        isGameWon = true;
+
+        int totalCoins = PlayerPrefs.GetInt("Coins", 500);
+        totalCoins += gameWinReward; //add 200 coins
+        PlayerPrefs.SetInt("Coins", totalCoins);
+        PlayerPrefs.Save();
+
+        Debug.Log("Game Won! Rewarded " + gameWinReward + " coins.");
+    }
 
     public void GameOver()
     {
         if (!isGameWon)
         {
-            gameOverText.gameObject.SetActive(true);
+            if (gameOverText != null)
+                gameOverText.gameObject.SetActive(true);
+
             isGameActive = false;
-            restartButton.gameObject.SetActive(true);
-            pauseButton.gameObject.SetActive(false);
-            resumeButton.gameObject.SetActive(false);
+
+            if (restartButton != null)
+                restartButton.gameObject.SetActive(true);
+            if (pauseButton != null) pauseButton.gameObject.SetActive(false);
+            if (resumeButton != null) resumeButton.gameObject.SetActive(false);
 
             if (score > highScore)
             {
@@ -172,7 +167,7 @@ public class GameManager : MonoBehaviour
         UpdateScore(0);
         highScore = PlayerPrefs.GetInt("HighScore", 0);
         highScoreText.text = "High Score: " + highScore;
-        
+
         // Initialize level
         level = 1;
         if (levelText != null)
@@ -204,9 +199,9 @@ public class GameManager : MonoBehaviour
             yield return new WaitForSeconds(1f);
             countdownText.gameObject.SetActive(false);
         }
-            isGameActive = true;
-            spawnRate /= difficulty;
-            StartCoroutine(SpawnTarget());
+        isGameActive = true;
+        spawnRate /= difficulty;
+        StartCoroutine(SpawnTarget());
     }
     // Pause/Resume functions
     public void TogglePause()
@@ -219,7 +214,7 @@ public class GameManager : MonoBehaviour
         {
             PauseGame();
         }
-            
+
     }
 
     public void PauseGame()
@@ -239,7 +234,7 @@ public class GameManager : MonoBehaviour
         if (pauseButton != null)
             pauseButton.gameObject.SetActive(true);
         if (resumeButton != null)
-        resumeButton.gameObject.SetActive(false);
+            resumeButton.gameObject.SetActive(false);
     }
 }
     
