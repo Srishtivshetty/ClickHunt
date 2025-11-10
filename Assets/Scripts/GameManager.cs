@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Targets & UI")]
     public List<GameObject> targets;
     public TextMeshProUGUI scoreText;
     public TextMeshProUGUI gameOverText;
@@ -18,7 +19,9 @@ public class GameManager : MonoBehaviour
     public Button resumeButton;
     public TextMeshProUGUI countdownText;
     public TextMeshProUGUI levelText;
-
+    [Header("Coin System")]
+    public LobbyCoins lobbyCoins;   // Reference to LobbyCoins for coin rewards
+    public int gameWinReward = 200; // Reward coins for winning
     private int highScore;
     public bool isGameActive;
     public bool isGameWon = false;
@@ -33,7 +36,15 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-
+    // Find LobbyCoins if not assigned
+    if (lobbyCoins == null)
+     {
+         lobbyCoins = FindObjectOfType<LobbyCoins>();
+         if (lobbyCoins == null)
+         {
+             Debug.LogWarning("LobbyCoins object not found in scene!");
+       }
+    }
         if (resumeButton != null)
             resumeButton.gameObject.SetActive(false);
         if (pauseButton != null)
@@ -102,9 +113,19 @@ public class GameManager : MonoBehaviour
         {
             isGameWon = true;
             isGameActive = false;
+            // Give reward coins
+            if (lobbyCoins != null)
+        {
+            lobbyCoins.AddCoins(gameWinReward);
+            Debug.Log("Game Won! Rewarded " + gameWinReward + " coins.");
+        }
 
             if (gameWinText != null) gameWinText.gameObject.SetActive(true);
-
+           // Reward coins for winning
+            if (lobbyCoins != null)
+        {
+            lobbyCoins.AddCoins(gameWinReward);   // new function in LobbyCoins
+        }
             // Update high score if needed
             if (score > highScore)
             {

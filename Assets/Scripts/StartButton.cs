@@ -5,17 +5,23 @@ using UnityEngine.UI;
 public class StartButtonScript : MonoBehaviour
 {
     private Button button;
+    public LobbyCoins lobbyCoins;
 
     void Start()
     {
         button = GetComponent<Button>();
-        button.onClick.AddListener(StartGame);
+        button.onClick.AddListener(OnPlayButtonClicked);
     }
 
-    void StartGame()
+    void OnPlayButtonClicked()
     {
-        Debug.Log("Start button clicked!");
-        SceneManager.LoadScene("ClickHunt");
+        if (lobbyCoins != null)
+        {
+            lobbyCoins.TryEntryGame(); 
+        }
+        else
+        {
+           Debug.LogWarning("LobbyCoins reference not set on StartButtonScript!");
+        }
     }
 }
-
