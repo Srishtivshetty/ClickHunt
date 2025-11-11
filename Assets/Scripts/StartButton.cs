@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class StartButtonScript : MonoBehaviour
@@ -17,11 +16,11 @@ public class StartButtonScript : MonoBehaviour
     {
         if (lobbyCoins != null)
         {
-            lobbyCoins.TryEntryGame(); 
+            lobbyCoins.TryEntryGame(); // Handles coin check, attempts, and scene load
         }
         else
         {
-           Debug.LogWarning("LobbyCoins reference not set on StartButtonScript!");
+            Debug.LogWarning("LobbyCoins reference not set on StartButtonScript!");
         }
     }
 }
