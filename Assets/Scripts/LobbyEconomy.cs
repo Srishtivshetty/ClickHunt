@@ -56,12 +56,19 @@ public class LobbyCoins : MonoBehaviour
     }
     //Cheat: Add 1000 coins instantly
     public void CheatAddCoins()
-{
-    int cheatAmount = 1000;
-    coins += cheatAmount;
-    PlayerPrefs.SetInt("Coins", coins);
-    PlayerPrefs.Save();
-    UpdateCoinText();
-    Debug.Log("Cheat used! Added " + cheatAmount + " coins. Total coins: " + coins);
-}
+    {
+        if (coins == 0)
+        {
+            int cheatAmount = 1000;
+            coins += cheatAmount;
+            PlayerPrefs.SetInt("Coins", coins);
+            PlayerPrefs.Save();
+            UpdateCoinText();
+            Debug.Log("Cheat used! Added " + cheatAmount + " coins. Total coins: " + coins);
+        }
+        else
+        {
+            Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
+        }
+    }
 }
