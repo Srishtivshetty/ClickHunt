@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -7,25 +6,31 @@ using UnityEngine.SceneManagement;
 public class LobbyCoins : MonoBehaviour
 {
     [Header("UI Elements")]
-    public TextMeshProUGUI coinText;   // UI text for displaying coins
-    public TextMeshProUGUI timerText; // show refile countdown
-    public TextMeshProUGUI dailyRewardText; // shows daily rewards
+    public TextMeshProUGUI coinText;          
+    public TextMeshProUGUI timerText;         
+    public TextMeshProUGUI dailyRewardText;   
+
     private int coins;
-    private int entryFee = 100;        // Entry fee for restarting attempts
-    private const int refillAmount = 100; //auto refile amount
-    private const int refillIntervalSeconds = 3600; // 1hr=3600 sec
-    private GameManager gameManager;   // Only exists in the gameplay scene
+    private int entryFee = 100;               
+    private const int refillAmount = 100;     
+    private const int refillIntervalSeconds = 3600; // 1 hour
+
+    private GameManager gameManager;          
     private DateTime nextRefillTime;
+
+    // --- Daily reward data ---
     private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 };
     private int currentDayIndex = 0;
-    private DateTime lastLoginDate;
+    private DateTime lastClaimDate;
     private bool rewardClaimedToday = false;
+
     void Start()
     {
-        // Load saved coins (default = 500)
+        // Load coins (default 500)
         coins = PlayerPrefs.GetInt("Coins", 500);
         UpdateCoinText();
-        // Load or set the next refill time
+
+        // --- Refill timer setup ---
         string savedTime = PlayerPrefs.GetString("NextRefillTime", "");
         if (string.IsNullOrEmpty(savedTime))
         {
@@ -37,33 +42,49 @@ public class LobbyCoins : MonoBehaviour
             long binaryTime = Convert.ToInt64(savedTime);
             nextRefillTime = DateTime.FromBinary(binaryTime);
         }
-        // Daily login initialization 
-        string savedDate = PlayerPrefs.GetString("LastLoginDate", "");
+
+        // --- Daily reward setup ---
+        string savedDate = PlayerPrefs.GetString("LastClaimDate", "");
         if (!string.IsNullOrEmpty(savedDate))
+            lastClaimDate = DateTime.Parse(savedDate);
+        else
+            lastClaimDate = DateTime.MinValue;
+
+        currentDayIndex = PlayerPrefs.GetInt("LoginDayIndex", 0);
+
+        // Check if today is a new day
+        if (lastClaimDate.Date == DateTime.Now.Date)
         {
-            lastLoginDate = DateTime.Parse(savedDate);
+            // Already claimed today
+            rewardClaimedToday = true;
         }
         else
         {
-           lastLoginDate = DateTime.MinValue; 
+            // New day → advance reward only if not first login ever
+            if (lastClaimDate != DateTime.MinValue)
+            {
+                currentDayIndex++;
+                if (currentDayIndex >= dailyRewards.Length)
+                    currentDayIndex = dailyRewards.Length - 1;
+            }
+            rewardClaimedToday = false;
         }
-        currentDayIndex = PlayerPrefs.GetInt("LoginDayIndex", 0);
-        rewardClaimedToday = (lastLoginDate.Date == DateTime.Now.Date);
+
         UpdateDailyRewardUI();
-        
-        // Try to find GameManager (won't exist in lobby)
-            gameManager = GameObject.Find("Game Manager")?.GetComponent<GameManager>();
+
+        // Optional: find GameManager (for gameplay)
+        gameManager = GameObject.Find("Game Manager")?.GetComponent<GameManager>();
         if (gameManager == null)
-        {
-            Debug.Log("Game Manager not found in the Lobby scene — that’s normal. It exists only in gameplay.");
-        }
+            Debug.Log("Game Manager not found in Lobby — normal behavior.");
     }
+
     void Update()
     {
         HandleAutoRefill();
         UpdateRefillTimer();
     }
-    //Automatically add coins every hour
+
+    // --- Automatic hourly refill ---
     private void HandleAutoRefill()
     {
         if (DateTime.Now >= nextRefillTime)
@@ -76,50 +97,50 @@ public class LobbyCoins : MonoBehaviour
             PlayerPrefs.SetString("NextRefillTime", nextRefillTime.ToBinary().ToString());
             PlayerPrefs.Save();
 
-            Debug.Log($"+{refillAmount} coins added automatically! Next refill in 1 hour.");
+            Debug.Log($"+{refillAmount} coins added automatically!");
         }
     }
 
-    // Show time remaining for next refill
+    // --- Show refill timer ---
     private void UpdateRefillTimer()
     {
         if (timerText == null) return;
 
         TimeSpan remaining = nextRefillTime - DateTime.Now;
         if (remaining.TotalSeconds <= 0)
-        {
             timerText.text = "Refill ready!";
-        }
         else
-        {
             timerText.text = $"Next refill in: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
-        }
     }
-    // Daily reward claim
-     public void ClaimDailyReward()
+
+    // --- Claim daily reward ---
+    public void ClaimDailyReward()
     {
+        // Check if today's reward was already claimed
         if (rewardClaimedToday)
         {
             Debug.Log("You already claimed today's reward!");
+            if (dailyRewardText != null)
+                dailyRewardText.text = "You already claimed today's reward!";
             return;
         }
 
+        // Give today's reward
         int reward = dailyRewards[currentDayIndex];
         coins += reward;
-        UpdateCoinText();
-
         PlayerPrefs.SetInt("Coins", coins);
-        PlayerPrefs.SetString("LastLoginDate", DateTime.Now.Date.ToString());
 
-        currentDayIndex++;
-        if (currentDayIndex >= dailyRewards.Length)
-            currentDayIndex = dailyRewards.Length - 1;
+        // Save claim date and current day index
+        PlayerPrefs.SetString("LastClaimDate", DateTime.Now.Date.ToShortDateString());
         PlayerPrefs.SetInt("LoginDayIndex", currentDayIndex);
-
         PlayerPrefs.Save();
 
         rewardClaimedToday = true;
-        UpdateDailyRewardUI();
+        UpdateCoinText();
+
+        // Update UI message immediately
+        if (dailyRewardText != null)
+            dailyRewardText.text = "You already claimed today's reward!";
 
         Debug.Log($"Daily reward claimed: {reward} coins!");
     }
@@ -130,17 +151,16 @@ public class LobbyCoins : MonoBehaviour
         if (dailyRewardText == null) return;
 
         if (rewardClaimedToday)
-            dailyRewardText.text = $"Today's Reward Claimed!";
+            dailyRewardText.text = "You already claimed today's reward!";
         else
-            dailyRewardText.text = $"Today's Reward: {dailyRewards[currentDayIndex]} Coins";
+            dailyRewardText.text = $"Today's reward: {dailyRewards[currentDayIndex]} coins";
     }
 
-    // Called when the player presses the Play button --Game entry logic
+    // --- Game entry ---
     public void TryEntryGame(int difficulty = 1)
     {
-        int remainingAttempts = PlayerPrefs.GetInt("RemainingAttempts", 3); // Default to 3 attempts
+        int remainingAttempts = PlayerPrefs.GetInt("RemainingAttempts", 3);
 
-        // Case 1: Player still has attempts left
         if (remainingAttempts > 0)
         {
             Debug.Log($"You have {remainingAttempts} attempts remaining. Starting game...");
@@ -148,13 +168,10 @@ public class LobbyCoins : MonoBehaviour
             return;
         }
 
-        // No attempts left → check if player can pay entry fee
         if (coins >= entryFee)
         {
-            coins -= entryFee; // Deduct entry fee
+            coins -= entryFee;
             PlayerPrefs.SetInt("Coins", coins);
-
-            // Reset 3 new attempts for gameplay
             PlayerPrefs.SetInt("RemainingAttempts", 3);
             PlayerPrefs.Save();
 
@@ -164,35 +181,34 @@ public class LobbyCoins : MonoBehaviour
         }
         else
         {
-            // Not enough coins
             Debug.Log("Not enough coins to pay entry fee!");
         }
     }
 
-    // Load the main gameplay scene
+    // --- Load game scene ---
     private void LoadGameScene()
     {
-        SceneManager.LoadScene("ClickHunt"); // Replace "ClickHunt" with your actual gameplay scene name if different
+        SceneManager.LoadScene("ClickHunt");
     }
 
-    // Update coin display
+    // --- Update coin text ---
     public void UpdateCoinText()
     {
         if (coinText != null)
             coinText.text = "Coins: " + coins;
     }
 
-    // Add coins (for rewards or testing)
+    // --- Manual add coins (debug/testing) ---
     public void AddCoins(int amount)
     {
         coins += amount;
         PlayerPrefs.SetInt("Coins", coins);
         PlayerPrefs.Save();
         UpdateCoinText();
-        Debug.Log($"{amount} coins added! Total coins: {coins}");
+        Debug.Log($"{amount} coins added! Total: {coins}");
     }
 
-    // Cheat: Add 1000 coins if player has 0
+    // --- Cheat add ---
     public void CheatAddCoins()
     {
         if (coins == 0)
@@ -202,11 +218,11 @@ public class LobbyCoins : MonoBehaviour
             PlayerPrefs.SetInt("Coins", coins);
             PlayerPrefs.Save();
             UpdateCoinText();
-            Debug.Log($"Cheat used! Added {cheatAmount} coins. Total coins: {coins}");
+            Debug.Log($"Cheat used! Added {cheatAmount} coins.");
         }
         else
         {
-            Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
+            Debug.Log("Cheat unavailable — only when coins = 0.");
         }
     }
 }
