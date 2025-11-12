@@ -4,7 +4,7 @@ using UnityEngine.UI;
 public class StartButtonScript : MonoBehaviour
 {
     private Button button;
-    public LobbyCoins lobbyCoins;
+    public LobbyEconomy lobbyEconomy; // Correct reference
 
     void Start()
     {
@@ -14,13 +14,13 @@ public class StartButtonScript : MonoBehaviour
 
     void OnPlayButtonClicked()
     {
-        if (lobbyCoins != null)
+        if (lobbyEconomy != null) // Use the correct variable name
         {
-            lobbyCoins.TryEntryGame(); // Handles coin check, attempts, and scene load
+            lobbyEconomy.TryEnterGame(); // Call the method from LobbyEconomy
         }
         else
         {
-            Debug.LogWarning("LobbyCoins reference not set on StartButtonScript!");
+            Debug.LogWarning("LobbyEconomy reference not set on StartButtonScript!");
         }
     }
 }

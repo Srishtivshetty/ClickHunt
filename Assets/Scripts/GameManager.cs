@@ -4,6 +4,15 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
+
+[System.Serializable]
+public class GameData
+{
+    public int coins = 500;
+    public int highScore = 0;
+    public int remainingAttempts = 3;
+}
 
 public class GameManager : MonoBehaviour
 {
@@ -23,27 +32,41 @@ public class GameManager : MonoBehaviour
     [Header("Attempts System")]
     public TextMeshProUGUI attemptsText;
     public int maxAttempts = 3;
-    public int currentAttempts;
+    private int currentAttempts;
 
     [Header("Game Settings")]
     public int gameWinReward = 200; // coins for winning
-    private int highScore;
-    public bool isGameActive;
-    public bool isGameWon = false;
-    private float spawnRate = 3.0f;
     private int score;
+    private bool isGameActive;
+    private bool isGameWon = false;
+    private float spawnRate = 3.0f;
     private bool isPaused = false;
 
     // Level system variables
     private int level = 1;
     private int[] scoreToNextLevel = { 50, 150, 200 };
 
+    // JSON save system
+    private GameData gameData;
+    private string dataPath;
+
+    // ---------------------- Public properties ----------------------
+    public bool IsGameActive { get { return isGameActive; } }
+    public bool IsGameWon { get { return isGameWon; } }
+    public int CurrentScore { get { return score; } }
+    public int CurrentAttempts { get { return currentAttempts; } }
+    public int CurrentLevel { get { return level; } }
+
+    void Awake()
+    {
+        dataPath = Application.persistentDataPath + "/gamedata.json";
+        LoadGameData();
+    }
+
     void Start()
     {
-        // Load remaining attempts or set to max (only first time)
-        currentAttempts = PlayerPrefs.GetInt("RemainingAttempts", maxAttempts);
+        currentAttempts = gameData.remainingAttempts;
 
-        // Stop the player if attempts are 0
         if (currentAttempts <= 0)
         {
             Debug.Log("No attempts left! Please return to the lobby and pay entry fee.");
@@ -123,12 +146,11 @@ public class GameManager : MonoBehaviour
 
             if (gameWinText != null) gameWinText.gameObject.SetActive(true);
 
-            if (score > highScore)
+            if (score > gameData.highScore)
             {
-                highScore = score;
-                PlayerPrefs.SetInt("HighScore", highScore);
-                PlayerPrefs.Save();
-                highScoreText.text = "High Score: " + highScore;
+                gameData.highScore = score;
+                SaveGameData();
+                highScoreText.text = "High Score: " + gameData.highScore;
             }
 
             if (pauseButton != null) pauseButton.gameObject.SetActive(false);
@@ -142,10 +164,8 @@ public class GameManager : MonoBehaviour
         if (isGameWon) return;
         isGameWon = true;
 
-        int totalCoins = PlayerPrefs.GetInt("Coins", 500);
-        totalCoins += gameWinReward;
-        PlayerPrefs.SetInt("Coins", totalCoins);
-        PlayerPrefs.Save();
+        gameData.coins += gameWinReward;
+        SaveGameData();
 
         Debug.Log("Game Won! Rewarded " + gameWinReward + " coins.");
     }
@@ -163,24 +183,22 @@ public class GameManager : MonoBehaviour
             if (pauseButton != null) pauseButton.gameObject.SetActive(false);
             if (resumeButton != null) resumeButton.gameObject.SetActive(false);
 
-            if (score > highScore)
+            if (score > gameData.highScore)
             {
-                highScore = score;
-                PlayerPrefs.SetInt("HighScore", highScore);
-                PlayerPrefs.Save();
-                highScoreText.text = "High Score: " + highScore;
+                gameData.highScore = score;
+                SaveGameData();
+                highScoreText.text = "High Score: " + gameData.highScore;
             }
 
-            //Reduce attempts by 1
+            // Reduce attempts
             currentAttempts--;
             if (currentAttempts < 0) currentAttempts = 0;
-            PlayerPrefs.SetInt("RemainingAttempts", currentAttempts);
-            PlayerPrefs.Save();
+            gameData.remainingAttempts = currentAttempts;
+            SaveGameData();
             UpdateAttemptsText();
 
             Debug.Log("Game Over! Remaining attempts: " + currentAttempts);
 
-            // If all attempts used, go back to lobby
             if (currentAttempts <= 0)
             {
                 Debug.Log("No attempts left! Returning to Lobby...");
@@ -192,7 +210,7 @@ public class GameManager : MonoBehaviour
     private IEnumerator ReturnToLobby()
     {
         yield return new WaitForSeconds(2f);
-        SceneManager.LoadScene("Lobby"); // Replace with your actual lobby scene name
+        SceneManager.LoadScene("Lobby"); // Replace with your lobby scene
     }
 
     public void RestartGame()
@@ -212,8 +230,8 @@ public class GameManager : MonoBehaviour
         titleScreen.SetActive(false);
         score = 0;
         UpdateScore(0);
-        highScore = PlayerPrefs.GetInt("HighScore", 0);
-        highScoreText.text = "High Score: " + highScore;
+
+        highScoreText.text = "High Score: " + gameData.highScore;
 
         level = 1;
         if (levelText != null)
@@ -261,32 +279,45 @@ public class GameManager : MonoBehaviour
     public void TogglePause()
     {
         if (isPaused)
-        {
             ResumeGame();
-        }
         else
-        {
             PauseGame();
-        }
     }
 
     public void PauseGame()
     {
         Time.timeScale = 0f;
         isPaused = true;
-        if (pauseButton != null)
-            pauseButton.gameObject.SetActive(false);
-        if (resumeButton != null)
-            resumeButton.gameObject.SetActive(true);
+        if (pauseButton != null) pauseButton.gameObject.SetActive(false);
+        if (resumeButton != null) resumeButton.gameObject.SetActive(true);
     }
 
     public void ResumeGame()
     {
         Time.timeScale = 1f;
         isPaused = false;
-        if (pauseButton != null)
-            pauseButton.gameObject.SetActive(true);
-        if (resumeButton != null)
-            resumeButton.gameObject.SetActive(false);
+        if (pauseButton != null) pauseButton.gameObject.SetActive(true);
+        if (resumeButton != null) resumeButton.gameObject.SetActive(false);
     }
+
+    #region JSON Save/Load
+    private void LoadGameData()
+    {
+        if (File.Exists(dataPath))
+        {
+            string json = File.ReadAllText(dataPath);
+            gameData = JsonUtility.FromJson<GameData>(json);
+        }
+        else
+        {
+            gameData = new GameData();
+            SaveGameData();
+        }
+    }
+
+    private void SaveGameData()
+    {
+        File.WriteAllText(dataPath, JsonUtility.ToJson(gameData));
+    }
+    #endregion
 }
