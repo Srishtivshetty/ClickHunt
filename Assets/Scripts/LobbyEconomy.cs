@@ -129,7 +129,23 @@ public class LobbyEconomy : MonoBehaviour
             Debug.Log("Not enough coins!");
         }
     }
-
+     // Cheat function
+    public void CheatAddCoins()
+    {
+        if (data.coins == 0)
+        {
+            int cheatAmount = 1000;
+            data.coins += cheatAmount;
+            SaveData();
+            UpdateCoinUI();
+            Debug.Log($"Cheat used! Added {cheatAmount} coins. Total coins: {data.coins}");
+        }
+        else
+        {
+            Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
+        }
+    }
+    
     private void SaveData()
     {
         string json = JsonUtility.ToJson(data, true);
