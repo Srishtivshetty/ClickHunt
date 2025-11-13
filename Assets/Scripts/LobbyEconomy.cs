@@ -4,6 +4,16 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 
+[System.Serializable]
+public class LobbyData
+{
+    public int coins = 500;
+    public int loginDayIndex = 0;
+    public string lastClaimDate = "";
+    public string nextRefillTime = "";
+    public int remainingAttempts = 3;
+}
+
 public class LobbyEconomy : MonoBehaviour
 {
     [Header("UI Elements")]
@@ -12,15 +22,16 @@ public class LobbyEconomy : MonoBehaviour
     public TextMeshProUGUI dailyRewardText;
 
     private LobbyData data;
-    private string dataPath;
+    private string dataPath;               // Path to lobby JSON file
 
-    private const int entryFee = 100;
-    private const int refillAmount = 100;
-    private const int refillIntervalSeconds = 3600; // 1 hour
+    private const int entryFee = 100;        // Coins required to enter the game
+    private const int refillAmount = 100;    // Auto refill amount
+    private const int refillIntervalSeconds = 3600; // 1 hour refill interval
 
-    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 };
+    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 }; // Weekly reward structure
     private bool rewardClaimedToday = false;
 
+    // -Unity Lifecycle -
     void Awake()
     {
         dataPath = Path.Combine(Application.persistentDataPath, "lobbydata.json");
@@ -39,6 +50,7 @@ public class LobbyEconomy : MonoBehaviour
         UpdateRefillTimer();
     }
 
+    // - Refill System -
     private void HandleAutoRefill()
     {
         if (string.IsNullOrEmpty(data.nextRefillTime))
@@ -71,6 +83,7 @@ public class LobbyEconomy : MonoBehaviour
             timerText.text = $"Next refill in: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
+    // - Daily Reward -
     public void ClaimDailyReward()
     {
         DateTime lastClaim = string.IsNullOrEmpty(data.lastClaimDate)
@@ -97,6 +110,8 @@ public class LobbyEconomy : MonoBehaviour
         SaveData();
         UpdateCoinUI();
         UpdateDailyRewardUI();
+
+        Debug.Log($"Daily reward claimed: {reward} coins!");
     }
 
     private void UpdateDailyRewardUI()
@@ -109,27 +124,54 @@ public class LobbyEconomy : MonoBehaviour
             dailyRewardText.text = $"Today's reward: {dailyRewards[data.loginDayIndex]} coins";
     }
 
+    // UI Updates 
     private void UpdateCoinUI()
     {
         if (coinText != null)
             coinText.text = $"Coins: {data.coins}";
     }
 
+    // Enter Game Logic
     public void TryEnterGame()
     {
         if (data.coins >= entryFee)
         {
+            // Deduct entry fee
             data.coins -= entryFee;
             SaveData();
             UpdateCoinUI();
-            SceneManager.LoadScene("ClickHunt"); // Replace with your scene name
+
+            // Sync to GameManager JSON file
+            string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
+            GameData gameData;
+
+            if (File.Exists(gameDataPath))
+            {
+                string json = File.ReadAllText(gameDataPath);
+                gameData = JsonUtility.FromJson<GameData>(json);
+            }
+            else
+            {
+                gameData = new GameData();
+            }
+
+            //Reset attempts and sync coins
+            gameData.remainingAttempts = 3;
+            gameData.coins = data.coins;
+            File.WriteAllText(gameDataPath, JsonUtility.ToJson(gameData, true));
+
+            Debug.Log("Entry fee paid. Attempts reset to 3 and synced with GameManager.");
+
+            // Load gameplay scene
+            SceneManager.LoadScene("ClickHunt");
         }
         else
         {
             Debug.Log("Not enough coins!");
         }
     }
-     // Cheat function
+
+    // Cheat Function 
     public void CheatAddCoins()
     {
         if (data.coins == 0)
@@ -138,6 +180,24 @@ public class LobbyEconomy : MonoBehaviour
             data.coins += cheatAmount;
             SaveData();
             UpdateCoinUI();
+
+            // Also sync to GameManager JSON
+            string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
+            GameData gameData;
+
+            if (File.Exists(gameDataPath))
+            {
+                string json = File.ReadAllText(gameDataPath);
+                gameData = JsonUtility.FromJson<GameData>(json);
+            }
+            else
+            {
+                gameData = new GameData();
+            }
+
+            gameData.coins = data.coins;
+            File.WriteAllText(gameDataPath, JsonUtility.ToJson(gameData, true));
+
             Debug.Log($"Cheat used! Added {cheatAmount} coins. Total coins: {data.coins}");
         }
         else
@@ -145,7 +205,8 @@ public class LobbyEconomy : MonoBehaviour
             Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
         }
     }
-    
+
+    // JSON Save/Load
     private void SaveData()
     {
         string json = JsonUtility.ToJson(data, true);
