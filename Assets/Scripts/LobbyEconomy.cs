@@ -36,6 +36,7 @@ public class LobbyEconomy : MonoBehaviour
     {
         dataPath = Path.Combine(Application.persistentDataPath, "lobbydata.json");
         LoadData();
+        SyncCoinsFromGame(); // <-- Sync coins from GameManager JSON
     }
 
     void Start()
@@ -203,6 +204,21 @@ public class LobbyEconomy : MonoBehaviour
         else
         {
             Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
+        }
+    }
+    
+    // Sync coins from GameManager
+    public void SyncCoinsFromGame()
+    {
+        string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
+        if (File.Exists(gameDataPath))
+        {
+            string json = File.ReadAllText(gameDataPath);
+            GameData gameData = JsonUtility.FromJson<GameData>(json);
+            data.coins = gameData.coins;
+            SaveData();
+            UpdateCoinUI();
+            Debug.Log("Lobby coins synced from game!");
         }
     }
 
