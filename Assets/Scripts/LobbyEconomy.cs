@@ -22,21 +22,19 @@ public class LobbyEconomy : MonoBehaviour
     public TextMeshProUGUI dailyRewardText;
 
     private LobbyData data;
-    private string dataPath;               // Path to lobby JSON file
+    private string dataPath;
 
-    private const int entryFee = 100;        // Coins required to enter the game
-    private const int refillAmount = 100;    // Auto refill amount
-    private const int refillIntervalSeconds = 3600; // 1 hour refill interval
+    private const int entryFee = 100;
+    private const int refillAmount = 100;
+    private const int refillIntervalSeconds = 3600; // 1 hour
+    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 }; // Weekly reward cycle
 
-    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 }; // Weekly reward structure
-    private bool rewardClaimedToday = false;
-
-    // -Unity Lifecycle -
     void Awake()
     {
         dataPath = Path.Combine(Application.persistentDataPath, "lobbydata.json");
         LoadData();
-        SyncCoinsFromGame(); // <-- Sync coins from GameManager JSON
+        SyncCoinsFromGame();
+        CheckForNewDay();
     }
 
     void Start()
@@ -51,7 +49,7 @@ public class LobbyEconomy : MonoBehaviour
         UpdateRefillTimer();
     }
 
-    // - Refill System -
+    // -- AUTO REFILL SYSTEM --
     private void HandleAutoRefill()
     {
         if (string.IsNullOrEmpty(data.nextRefillTime))
@@ -84,30 +82,43 @@ public class LobbyEconomy : MonoBehaviour
             timerText.text = $"Next refill in: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
-    // - Daily Reward -
+    // DAILY REWARD
+    private void CheckForNewDay()
+    {
+        if (string.IsNullOrEmpty(data.lastClaimDate)) return;
+
+        DateTime lastClaim = DateTime.Parse(data.lastClaimDate);
+        if ((DateTime.Now.Date - lastClaim.Date).Days >= 1)
+        {
+            // Move to next reward if a new day has come
+            data.loginDayIndex++;
+            if (data.loginDayIndex >= dailyRewards.Length)
+                data.loginDayIndex = 0; // Restart weekly cycle
+            SaveData();
+        }
+    }
+
     public void ClaimDailyReward()
     {
         DateTime lastClaim = string.IsNullOrEmpty(data.lastClaimDate)
             ? DateTime.MinValue
             : DateTime.Parse(data.lastClaimDate);
 
+        // Already claimed today
         if (lastClaim.Date == DateTime.Now.Date)
         {
-            rewardClaimedToday = true;
             if (dailyRewardText != null)
                 dailyRewardText.text = "You already claimed today's reward!";
             return;
         }
 
+        // Grant reward
         int reward = dailyRewards[data.loginDayIndex];
         data.coins += reward;
-        data.lastClaimDate = DateTime.Now.ToShortDateString();
 
-        data.loginDayIndex++;
-        if (data.loginDayIndex >= dailyRewards.Length)
-            data.loginDayIndex = dailyRewards.Length - 1;
+        // Update last claim date
+        data.lastClaimDate = DateTime.Now.ToString("yyyy-MM-dd");
 
-        rewardClaimedToday = true;
         SaveData();
         UpdateCoinUI();
         UpdateDailyRewardUI();
@@ -119,30 +130,36 @@ public class LobbyEconomy : MonoBehaviour
     {
         if (dailyRewardText == null) return;
 
-        if (rewardClaimedToday)
+        DateTime lastClaim = string.IsNullOrEmpty(data.lastClaimDate)
+            ? DateTime.MinValue
+            : DateTime.Parse(data.lastClaimDate);
+
+        if (lastClaim.Date == DateTime.Now.Date)
+        {
             dailyRewardText.text = "You already claimed today's reward!";
+        }
         else
+        {
             dailyRewardText.text = $"Today's reward: {dailyRewards[data.loginDayIndex]} coins";
+        }
     }
 
-    // UI Updates 
+    //  UI UPDATES 
     private void UpdateCoinUI()
     {
         if (coinText != null)
             coinText.text = $"Coins: {data.coins}";
     }
 
-    // Enter Game Logic
+    //  ENTER GAME 
     public void TryEnterGame()
     {
         if (data.coins >= entryFee)
         {
-            // Deduct entry fee
             data.coins -= entryFee;
             SaveData();
             UpdateCoinUI();
 
-            // Sync to GameManager JSON file
             string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
             GameData gameData;
 
@@ -156,14 +173,11 @@ public class LobbyEconomy : MonoBehaviour
                 gameData = new GameData();
             }
 
-            //Reset attempts and sync coins
             gameData.remainingAttempts = 3;
             gameData.coins = data.coins;
             File.WriteAllText(gameDataPath, JsonUtility.ToJson(gameData, true));
 
             Debug.Log("Entry fee paid. Attempts reset to 3 and synced with GameManager.");
-
-            // Load gameplay scene
             SceneManager.LoadScene("ClickHunt");
         }
         else
@@ -172,7 +186,7 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    // Cheat Function 
+    // CHEAT COINS
     public void CheatAddCoins()
     {
         if (data.coins == 0)
@@ -182,7 +196,6 @@ public class LobbyEconomy : MonoBehaviour
             SaveData();
             UpdateCoinUI();
 
-            // Also sync to GameManager JSON
             string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
             GameData gameData;
 
@@ -206,8 +219,8 @@ public class LobbyEconomy : MonoBehaviour
             Debug.Log("Cheat unavailable! You can only use it when coins = 0.");
         }
     }
-    
-    // Sync coins from GameManager
+
+    // SYNC FROM GAME 
     public void SyncCoinsFromGame()
     {
         string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
@@ -222,7 +235,7 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    // JSON Save/Load
+    // SAVE / LOAD 
     private void SaveData()
     {
         string json = JsonUtility.ToJson(data, true);
