@@ -4,6 +4,8 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 
+// Stores all persistent data for the lobby:
+// coins, login streak, last reward claim, refill timer, attempts, etc.
 [System.Serializable]
 public class LobbyData
 {
@@ -21,20 +23,26 @@ public class LobbyEconomy : MonoBehaviour
     public TextMeshProUGUI timerText;
     public TextMeshProUGUI dailyRewardText;
 
-    private LobbyData data;
-    private string dataPath;
-
-    private const int entryFee = 100;
+    //--Data System--
+    private LobbyData data;   //Runtime copy of Lobby data
+    private string dataPath;  //File path for Lobbydata.json
+    
+    //--Economy Setting--
+    private const int entryFee = 100;  //Entry fees
     private const int refillAmount = 100;
     private const int refillIntervalSeconds = 3600; // 1 hour
-    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 }; // Weekly reward cycle
 
+    //Weekly daily reward structure 
+    private int[] dailyRewards = { 100, 200, 300, 300, 300, 300, 300 }; 
+
+    //-- Unity Methods--
     void Awake()
     {
+        // Build file path and load saved data
         dataPath = Path.Combine(Application.persistentDataPath, "lobbydata.json");
         LoadData();
-        SyncCoinsFromGame();
-        CheckForNewDay();
+        SyncCoinsFromGame(); // Ensure coins match GameData (if game was played)
+        CheckForNewDay();    // Check if we moved to a new day for daily reward progression
     }
 
     void Start()
@@ -45,21 +53,23 @@ public class LobbyEconomy : MonoBehaviour
 
     void Update()
     {
-        HandleAutoRefill();
-        UpdateRefillTimer();
+        HandleAutoRefill();   // Auto-add coins every hour
+        UpdateRefillTimer();  // Update countdown text
     }
 
     // -- AUTO REFILL SYSTEM --
+    // Gives the player coins automatically every hour.
     private void HandleAutoRefill()
     {
+        // If no next refill time stored -> create one
         if (string.IsNullOrEmpty(data.nextRefillTime))
         {
             data.nextRefillTime = DateTime.Now.AddSeconds(refillIntervalSeconds).ToBinary().ToString();
             SaveData();
         }
-
         DateTime nextRefill = DateTime.FromBinary(Convert.ToInt64(data.nextRefillTime));
-
+        
+        // If refill time reached -> add coins and schedule next refill
         if (DateTime.Now >= nextRefill)
         {
             data.coins += refillAmount;
@@ -68,7 +78,8 @@ public class LobbyEconomy : MonoBehaviour
             UpdateCoinUI();
         }
     }
-
+    
+    // Shows a countdown to the next refill.
     private void UpdateRefillTimer()
     {
         if (timerText == null) return;
@@ -82,22 +93,24 @@ public class LobbyEconomy : MonoBehaviour
             timerText.text = $"Next refill in: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
-    // DAILY REWARD
+    //--Daily Reward Syatem--
     private void CheckForNewDay()
     {
         if (string.IsNullOrEmpty(data.lastClaimDate)) return;
 
         DateTime lastClaim = DateTime.Parse(data.lastClaimDate);
+        // If today is a new calendar day → advance reward cycle
         if ((DateTime.Now.Date - lastClaim.Date).Days >= 1)
         {
             // Move to next reward if a new day has come
             data.loginDayIndex++;
+            // Loop back to day 0 after day 6
             if (data.loginDayIndex >= dailyRewards.Length)
-                data.loginDayIndex = 0; // Restart weekly cycle
+                data.loginDayIndex = 0;     // Restart weekly cycle
             SaveData();
         }
     }
-
+     // Called when user presses "Claim Daily Reward".
     public void ClaimDailyReward()
     {
         DateTime lastClaim = string.IsNullOrEmpty(data.lastClaimDate)
@@ -112,7 +125,7 @@ public class LobbyEconomy : MonoBehaviour
             return;
         }
 
-        // Grant reward
+        // Grant today's reward
         int reward = dailyRewards[data.loginDayIndex];
         data.coins += reward;
 
@@ -125,7 +138,7 @@ public class LobbyEconomy : MonoBehaviour
 
         Debug.Log($"Daily reward claimed: {reward} coins!");
     }
-
+    // Updates the text showing today's reward or claim status.
     private void UpdateDailyRewardUI()
     {
         if (dailyRewardText == null) return;
@@ -144,22 +157,24 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    //  UI UPDATES 
+    // --UI UPDATES-- 
+    // Refresh the coin total shown to the player.
     private void UpdateCoinUI()
     {
         if (coinText != null)
             coinText.text = $"Coins: {data.coins}";
     }
 
-    //  ENTER GAME 
+    //--Game Entry Logic--
+    // Called when "Play" button is pressed. Charges entry fee and resets attempts.
     public void TryEnterGame()
     {
         if (data.coins >= entryFee)
         {
-            data.coins -= entryFee;
+            data.coins -= entryFee;  // Pay entry fee
             SaveData();
             UpdateCoinUI();
-
+            // Sync to GameData (used by GameManager)
             string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
             GameData gameData;
 
@@ -172,7 +187,7 @@ public class LobbyEconomy : MonoBehaviour
             {
                 gameData = new GameData();
             }
-
+            // Reset attempts and coin sync
             gameData.remainingAttempts = 3;
             gameData.coins = data.coins;
             File.WriteAllText(gameDataPath, JsonUtility.ToJson(gameData, true));
@@ -186,7 +201,7 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    // CHEAT COINS
+    // --CHEAT FUNCTION COINS--
     public void CheatAddCoins()
     {
         if (data.coins == 0)
@@ -195,7 +210,7 @@ public class LobbyEconomy : MonoBehaviour
             data.coins += cheatAmount;
             SaveData();
             UpdateCoinUI();
-
+            // Also sync to game data
             string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
             GameData gameData;
 
@@ -220,7 +235,8 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    // SYNC FROM GAME 
+    // --SYNC WITH GAME MANAGER--
+    // Loads GameData and syncs its coin value back to the lobby.
     public void SyncCoinsFromGame()
     {
         string gameDataPath = Path.Combine(Application.persistentDataPath, "gamedata.json");
@@ -235,13 +251,14 @@ public class LobbyEconomy : MonoBehaviour
         }
     }
 
-    // SAVE / LOAD 
+    //--Save & Load--
+    // Writes the current LobbyData to JSON file.
     private void SaveData()
     {
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(dataPath, json);
     }
-
+    // Loads lobby data, or creates new file if none exists
     private void LoadData()
     {
         if (File.Exists(dataPath))
