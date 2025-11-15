@@ -30,7 +30,7 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI levelText;
 
     [Header("Attempts System")]
-    public TextMeshProUGUI attemptsText;
+    public TextMeshProUGUI attemptsText; //shows remaining attempts
     public int maxAttempts = 3;
     private int currentAttempts;
 
